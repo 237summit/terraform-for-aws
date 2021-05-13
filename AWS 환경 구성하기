@@ -1,0 +1,63 @@
+AWS 환경 구성하기
+
+환경 : WSL - 리눅스(Ubuntu20.04) 테라폼설치 후 visual code로 연결
+        참고: https://www.youtube.com/watch?v=hGI5M7zeyLM&t=696s
+
+테라폼 관련 문서: https://www.44bits.io/ko/post/terraform_introduction_infrastrucute_as_code#테라폼설치
+테라폼 설치후 기본 구성
+- 명령어 자동완성 기능 추가
+$ terraform -install-autocomplete
+$ source ~/.bashrc
+
+
+1. 프로바이더 접근 권한 설정
+1) 링크: aws.amazon.com - root 로그인후 IAM 생성
+  사용자이름 : k8suser-console
+  프로그래밍 방식 선택
+  기존 정책 : administrator
+  태그 추가 - <SKIP>
+  [사용자만들기] 버튼 클릭
+  
+  사용자 생성되면 csv다운로드 -액세스ID/엑세스키
+
+2. provider와 인증 정보 저장
+방법1) provider.tf 생성해서 apply
+provider "aws" {
+  access_key = "AKIASJVPYMLB3ZIL6FNR"
+  secret_key = "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"
+  region = "ap-northeast-2"
+}
+
+방법2) provider 정보와 인증 키를 환경변수로 등록할수 있음
+참고 : https://docs.aws.amazon.com/ko_kr/cli/latest/userguide/cli-configure-envvars.html
+export AWS_ACCESS_KEY_ID=AKIASJVPYMLB3ZIL6FNR
+export AWS_SECRET_ACCESS_KEY=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
+export AWS_DEFAULT_REGION=ap-northeast-2
+
+
+2. EC2 생성 : main.tf
+참고: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance
+Required: ami, instance_type(ap-northeast-2: ami-04876f29fd3a5e8ba, t2.micro)은 반드시 기록해야한다. 
+
+resource "aws_instance" "web" {
+  ami           = "ami-04876f29fd3a5e8ba"
+  instance_type = "t2.micro"
+
+  tags = {
+    Name = "demo-instance"
+  }
+}
+
+
+3. 생성한 EC2에  ssh 클라이언트로 접속 가능하게 설정하기
+1) ssh-keypair 생성
+   client  -----------------------> ec2
+  key생성해서                      공개키는 이곳에 넣어두고
+  나의 비빌키로 -------접속---->
+
+$ ssh-keygen -t rsa -b 4096 -f "$HOME/.ssh/aws" -N ""
+$ ls ~/.ssh/aws
+aws      aws.pub  
+
+2) 생성한 공개키 등록 : key-pair.tf
+참조 : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/key_pair
